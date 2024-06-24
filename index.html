@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enviar Mensagem via Webhook do Discord</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+    }
+    .container {
+        max-width: 600px;
+        margin: auto;
+    }
+    input[type="text"], textarea, input[type="file"], .poll-option {
+        width: 100%;
+        padding: 10px;
+        margin: 5px 0;
+        box-sizing: border-box;
+    }
+    button {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #0056b3;
+    }
+    .poll-option-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>Enviar Mensagem via Webhook do Discord</h2>
+    <label for="webhookUrl">URL do Webhook do Discord:</label>
+    <input type="text" id="webhookUrl" placeholder="Cole o link do webhook do Discord aqui...">
+    
+    <label for="message">Mensagem a enviar:</label>
+    <textarea id="message" rows="4" placeholder="Digite a mensagem que o webhook enviará..."></textarea>
+    
+    <label for="imageFile">Imagem a enviar:</label>
+    <input type="file" id="imageFile" accept="image/*">
+    
+    <label for="audioFile">Áudio a enviar:</label>
+    <input type="file" id="audioFile" accept="audio/*">
+    
+    <div id="pollContainer">
+        <label>Enquete (cada opção em um campo):</label>
+        <div class="poll-option-container">
+            <input type="text" class="poll-option" placeholder="Opção 1">
+            <button type="button" onclick="removePollOption(this)">Remover</button>
+        </div>
+        <div class="poll-option-container">
+            <input type="text" class="poll-option" placeholder="Opção 2">
+            <button type="button" onclick="removePollOption(this)">Remover</button>
+        </div>
+    </div>
+    <button type="button" onclick="addPollOption()">Adicionar Opção</button>
+    
+    <button onclick="sendMessage()">Enviar Mensagem</button>
+</div>
+
+<script>
+    function addPollOption() {
+        const pollContainer = document.getElementById('pollContainer');
+        const pollOptionContainer = document.createElement('div');
+        pollOptionContainer.className = 'poll-option-container';
+        
+        const pollOptionInput = document.createElement('input');
+        pollOptionInput.type = 'text';
+        pollOptionInput.className = 'poll-option';
+        pollOptionInput.placeholder = `Opção ${pollContainer.children.length + 1}`;
+        
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.innerText = 'Remover';
+        removeButton.onclick = function() {
+            removePollOption(removeButton);
+        };
+        
+        pollOptionContainer.appendChild(pollOptionInput);
+        pollOptionContainer.appendChild(removeButton);
+        
+        pollContainer.appendChild(pollOptionContainer);
+    }
+
+    function removePollOption(button) {
+        const pollContainer = document.getElementById('pollContainer');
+        pollContainer.removeChild(button.parentElement);
+        
+        // Update placeholders
+        const pollOptions = document.getElementsByClassName('poll-option');
+        for (let i = 0; i < pollOptions.length; i++) {
+            pollOptions[i].placeholder = `Opção ${i + 1}`;
+        }
+    }
+
+    async function sendMessage() {
+        const webhookUrl = document.getElementById("webhookUrl").value.trim();
+        const message = document.getElementById("message").value.trim();
+        const imageFile = document.getElementById("imageFile").files[0];
+        const audioFile = document.getElementById("audioFile").files[0];
+        const pollOptions = document.getElementsByClassName("poll-option");
+        
+        if (!webhookUrl || !message) {
+            alert("Por favor, preencha os campos de URL do Webhook e Mensagem!");
+            return;
+        }
+
+        let formData = new FormData();
+        formData.append('content', message);
+        
+        if (imageFile) {
+            formData.append('file', imageFile);
+        }
+
+        if (audioFile) {
+            formData.append('file', audioFile);
+        }
+
+        if (pollOptions.length > 0) {
+            let pollMessage = " \n";
+            for (let i = 0; i < pollOptions.length; i++) {
+                const option = pollOptions[i].value.trim();
+                if (option) {
+                    pollMessage += `:regional_indicator_${String.fromCharCode(97 + i)}: ${option}\n`;
+                }
+            }
+            formData.set('content', formData.get('content') + `\n\n${pollMessage}`);
+        }
+
+        try {
+            const response = await fetch(webhookUrl, {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao enviar mensagem: ' + response.status);
+            }
+            
+            alert("Mensagem enviada com sucesso para o webhook!");
+            document.getElementById("message").value = "";
+            document.getElementById("imageFile").value = "";
+            document.getElementById("audioFile").value = "";
+            while (pollOptions.length > 0) {
+                pollOptions[0].parentElement.remove();
+            }
+            addPollOption();
+        } catch (error) {
+            alert("Erro ao enviar mensagem para o webhook: " + error.message);
+        }
+    }
+</script>
+
+</body>
+</html>
